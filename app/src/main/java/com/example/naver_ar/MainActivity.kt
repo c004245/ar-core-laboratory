@@ -3,6 +3,7 @@ package com.example.naver_ar
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.databinding.DataBindingUtil
@@ -10,6 +11,7 @@ import com.example.naver_ar.databinding.ActivityMainBinding
 import com.example.naver_ar.util.CameraPermissionHelper
 import com.google.ar.core.ArCoreApk
 import com.google.ar.core.Session
+import com.google.ar.core.exceptions.UnavailableException
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
 import java.lang.Exception
 
@@ -31,8 +33,9 @@ class MainActivity : AppCompatActivity() {
         isSupportArDevice()
     }
 
-    private fun isSupportArDevice() {
-        val availability = ArCoreApk.getInstance().checkAvailability(this)
+    //Verify that ARCore is installed and using the current version.
+    private fun isSupportArDevice(): Boolean {
+       /* val availability = ArCoreApk.getInstance().checkAvailability(this)
         if (availability.isTransient) {
             //Continue to query availability at 5Hz? while compatibility is checked in the background
             Handler().postDelayed({
@@ -46,6 +49,41 @@ class MainActivity : AppCompatActivity() {
         } else {
             binding.btnAr.visibility = View.INVISIBLE
             binding.btnAr.isEnabled = false
+        }*/
+
+        return when (ArCoreApk.getInstance().checkAvailability(this)) {
+            ArCoreApk.Availability.SUPPORTED_INSTALLED -> true
+            ArCoreApk.Availability.SUPPORTED_APK_TOO_OLD, ArCoreApk.Availability.SUPPORTED_NOT_INSTALLED -> {
+                try {
+                    // Request ARCore installation or update if needed.
+                    when (ArCoreApk.getInstance().requestInstall(this, true)) {
+                        ArCoreApk.InstallStatus.INSTALL_REQUESTED -> {
+                            Log.d("HWO", "ARCore installation requested.")
+                            false
+                        }
+                        ArCoreApk.InstallStatus.INSTALLED -> true
+                    }
+                } catch (e: UnavailableException) {
+                    false
+                }
+            }
+            ArCoreApk.Availability.UNSUPPORTED_DEVICE_NOT_CAPABLE ->
+                //This device is not supported for AR.
+            false
+
+            ArCoreApk.Availability.UNKNOWN_CHECKING -> {
+                //ARCore is checking the availability with a remote query.
+                //This function should be called again after waiting 200ms to determine the query result.
+                Handler().postDelayed({
+                    isSupportArDevice()
+                }, 200)
+            }
+            ArCoreApk.Availability.UNKNOWN_ERROR, ArCoreApk.Availability.UNKNOWN_TIMED_OUT -> {
+                // There was an error checking for AR availability. This may be due to the device being offline.
+                // Handle the error appropriately.
+                false
+            }
+
         }
     }
 
