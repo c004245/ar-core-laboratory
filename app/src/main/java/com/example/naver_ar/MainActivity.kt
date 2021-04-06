@@ -10,6 +10,7 @@ import androidx.databinding.DataBindingUtil
 import com.example.naver_ar.databinding.ActivityMainBinding
 import com.example.naver_ar.util.CameraPermissionHelper
 import com.google.ar.core.ArCoreApk
+import com.google.ar.core.Config
 import com.google.ar.core.Session
 import com.google.ar.core.exceptions.UnavailableException
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
@@ -35,22 +36,6 @@ class MainActivity : AppCompatActivity() {
 
     //Verify that ARCore is installed and using the current version.
     private fun isSupportArDevice(): Boolean {
-       /* val availability = ArCoreApk.getInstance().checkAvailability(this)
-        if (availability.isTransient) {
-            //Continue to query availability at 5Hz? while compatibility is checked in the background
-            Handler().postDelayed({
-                isSupportArDevice()
-            }, 200)
-        }
-
-        if (availability.isSupported) {
-            binding.btnAr.visibility = View.VISIBLE
-            binding.btnAr.isEnabled = true
-        } else {
-            binding.btnAr.visibility = View.INVISIBLE
-            binding.btnAr.isEnabled = false
-        }*/
-
         return when (ArCoreApk.getInstance().checkAvailability(this)) {
             ArCoreApk.Availability.SUPPORTED_INSTALLED -> true
             ArCoreApk.Availability.SUPPORTED_APK_TOO_OLD, ArCoreApk.Availability.SUPPORTED_NOT_INSTALLED -> {
@@ -83,8 +68,24 @@ class MainActivity : AppCompatActivity() {
                 // Handle the error appropriately.
                 false
             }
-
         }
+    }
+
+    private fun createSession() {
+        //Create a new ARCore session.
+        mSession = Session(this)
+
+        //create a session config.
+        val config = Config(mSession)
+
+        //Do feature-specific operations here, such as enabling depth or turning on
+        //support  for Augmented Faces.
+        mSession.configure(config)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mSession.close()
     }
 
     override fun onResume() {
